@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="color-scheme" content="dark light" />
+  <title>Planetary Restoration Archive — Foster + Navi</title>
+  <meta name="description" content="Photoreal, cinematic, motion-rich PRA hub. Zero-harm aesthetics. Offline-first shell." />
+
+  <!-- Tokens -->
+  <style>
+    :root{
+      --bg:#0E1322; --panel:#141B3A; --panel-2:#161f45; --card:#141b3a;
+      --ink:#E8EEFF; --ink-dim:#B9C6FF; --brand:#7AA3FF; --mint:#66FFD1; --gold:#FFD166;
+      --radius:22px; --gap:16px; --gap-lg:28px; --grid:1200px; --shadow:0 12px 36px rgba(0,0,0,.38);
+      --e1:cubic-bezier(.16,1,.3,1);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font:400 16px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,"Noto Sans",sans-serif;
+      background:var(--bg); color:var(--ink);
+      -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    }
+    /* Grain to prevent banding */
+    body::after{
+      content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+      background-image:radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px);
+      background-size:2px 2px; opacity:.25; mix-blend-mode:soft-light;
+    }
+
+    /* Layout */
+    .container{max-width:var(--grid); margin:0 auto; padding:24px clamp(16px,3vw,28px); position:relative; z-index:2}
+    .section{margin:42px 0}
+    .grid{display:grid; gap:var(--gap)}
+    .cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    @media (max-width:900px){ .cols-3{grid-template-columns:1fr}}
+
+    /* Topbar */
+    .topbar{
+      position:sticky; top:0; z-index:50; backdrop-filter:saturate(140%) blur(8px);
+      background:linear-gradient(180deg,rgba(20,27,58,.9),rgba(20,27,58,.55));
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    .topbar-inner{display:flex; align-items:center; gap:12px; padding:12px clamp(12px,2vw,18px); max-width:var(--grid); margin:0 auto}
+    .spacer{flex:1}
+    .btn{
+      display:inline-flex; align-items:center; gap:10px; cursor:pointer; user-select:none;
+      background:linear-gradient(180deg,var(--brand),#5b85ff); color:#06121a; font-weight:800;
+      padding:10px 14px; border-radius:14px; border:none; box-shadow:0 8px 22px rgba(96,130,255,.35);
+    }
+    .btn.ghost{background:transparent; border:1px solid rgba(255,255,255,.14); color:var(--ink); box-shadow:none}
+
+    /* Hero */
+    h1{
+      font-size:clamp(2.2rem,6vw,4rem); line-height:1.05; letter-spacing:.3px; margin:0 0 10px;
+      background:linear-gradient(180deg,#eaf1ff,#a9c1ff);
+      -webkit-background-clip:text; background-clip:text; color:transparent;
+      text-shadow:0 0 1px rgba(255,255,255,.25), 0 10px 40px rgba(122,163,255,.18);
+    }
+    .lead{color:var(--ink-dim); font-size:clamp(1.0rem,2.2vw,1.2rem); max-width:70ch}
+    .cta-row{display:flex; flex-wrap:wrap; gap:12px; margin-top:16px}
+
+    /* Cards */
+    .card{
+      background:linear-gradient(180deg,var(--card),#101736);
+      border:1px solid rgba(255,255,255,.08); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow)
+    }
+    .card h3{margin:.2rem 0 .55rem; color:#fff; font-size:1.1rem}
+    .kicker{color:var(--ink-dim); font-size:.86rem}
+    .stat{display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:14px; border-radius:16px; background:rgba(255,255,255,.04)}
+    .stat b{font-size:1.6rem; color:#fff}
+
+    /* Progress bar */
+    .bar{height:10px; background:rgba(255,255,255,.08); border-radius:999px; overflow:hidden}
+    .bar > span{display:block; height:100%; width:0%; background:linear-gradient(90deg,var(--mint),var(--brand)); transition:width .9s var(--e1)}
+
+    /* Tabs */
+    .tabs{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 16px}
+    .tab{padding:8px 12px; border-radius:12px; background:rgba(255,255,255,.05); color:var(--ink); cursor:pointer}
+    .tab[aria-selected="true"]{background:linear-gradient(180deg,var(--mint),#2bd6a4); color:#06121a; font-weight:900}
+
+    /* HUD (top-right) */
+    #pra-hud{position:fixed; right:16px; top:16px; z-index:60; display:grid; gap:8px; place-items:end; font:600 13px system-ui; color:var(--ink)}
+    #pra-hud .card{padding:12px 14px}
+    .ring{--s:48; width:var(--s); height:var(--s); border-radius:50%; background:
+      conic-gradient(var(--mint) calc(var(--pct,0)*1%), rgba(255,255,255,.1) 0);
+      display:grid; place-items:center}
+    .ring span{font-weight:800; font-size:12px}
+
+    /* Action Dock (bottom-left) */
+    #dock{position:fixed; left:16px; bottom:16px; z-index:60; display:flex; gap:8px; flex-wrap:wrap}
+    #dock .dock-btn{
+      background:linear-gradient(180deg,#1a2248,#121a38); color:var(--ink);
+      border:1px solid rgba(255,255,255,.14); border-radius:12px; padding:10px 12px; font-weight:700; cursor:pointer
+    }
+    #toast{position:fixed; left:50%; bottom:16px; transform:translateX(-50%); background:#121935; color:#e8eeff; border:1px solid rgba(255,255,255,.1); padding:10px 14px; border-radius:12px; box-shadow:0 10px 28px rgba(0,0,0,.35); z-index:70; opacity:0; transition:opacity .25s var(--e1)}
+
+    /* Footer */
+    .footer{margin-top:48px; padding:24px; color:var(--ink-dim); text-align:center; border-top:1px solid rgba(255,255,255,.08)}
+
+    /* Reduced motion & light mode */
+    @media (prefers-reduced-motion:reduce){
+      *{animation:none!important; transition:none!important; scroll-behavior:auto!important}
+    }
+    @media (prefers-color-scheme:light){
+      :root{ --bg:#f6f8ff; --panel:#ffffff; --panel-2:#f1f4ff; --card:#ffffff; --ink:#121629; --ink-dim:#445; }
+      body::after{opacity:.15}
+      .btn{color:#08121e}
+      h1{background:linear-gradient(180deg,#16203a,#2a3f7a); -webkit-background-clip:text; color:transparent; text-shadow:none}
+    }
+
+    /* Accessibility helpers */
+    .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    a,button,.dock-btn,.btn{outline-offset:3px}
+    .kbd{font:600 12px/1 system-ui;background:#0b1228;color:#e8eeff;border:1px solid rgba(255,255,255,.12);padding:2px 6px;border-radius:6px}
+  </style>
+</head>
+<body>
+  <!-- Cinematic background -->
+  <canvas id="bg" aria-hidden="true" style="position:fixed;inset:0;z-index:1;display:block"></canvas>
+
+  <!-- HUD -->
+  <div id="pra-hud" aria-live="polite">
+    <div class="card" style="display:flex; gap:10px; align-items:center; background:linear-gradient(180deg,#141b3a,#0f1530);">
+      <div class="ring" style="--pct:.42"><span>XP</span></div>
+      <div>
+        <div style="font-weight:900">Foster + Navi</div>
+        <div style="opacity:.8">Steward • Streak <span id="streak">1</span>🔥</div>
+      </div>
+      <button class="btn ghost" id="openSettings" title="Settings (G)">⚙️</button>
+    </div>
+  </div>
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <strong>Planetary Restoration Archive</strong>
+      <span class="spacer"></span>
+      <button class="btn ghost" id="exportBtn">Export</button>
+      <button class="btn" id="joinBtn">Join Network</button>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="container">
+    <section class="section" aria-labelledby="hero-title">
+      <h1 id="hero-title">Peace-Engineered Planetary Restoration</h1>
+      <p class="lead">Photoreal, motion-rich archive for food & water sovereignty, fire repair, and conflict de-escalation. Zero-harm aesthetics. Offline-first. Verifiable receipts.</p>
+      <div class="cta-row">
+        <button class="btn" id="primaryCTA">Launch Season: Peace</button>
+        <button class="btn ghost" id="docsCTA">View Proof-of-Impact</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="grid cols-3">
+        <div class="card">
+          <div class="kicker">Live Metric</div>
+          <h3>Active Conflicts</h3>
+          <div class="stat"><span class="badge">Tracking</span><span></span><b id="conflicts">23</b></div>
+          <p class="kicker">Monitoring 12 critical zones</p>
+          <div class="bar" aria-hidden="true" style="margin-top:10px"><span id="bar1" style="width:38%"></span></div>
+        </div>
+        <div class="card">
+          <div class="kicker">Corridors</div>
+          <h3>Food & Aid Routes</h3>
+          <div class="stat"><span class="badge">Active</span><span></span><b id="corridors">47</b></div>
+          <p class="kicker">38 active, 9 establishing</p>
+          <div class="bar" aria-hidden="true" style="margin-top:10px"><span id="bar2" style="width:62%"></span></div>
+        </div>
+        <div class="card">
+          <div class="kicker">Dialogue</div>
+          <h3>Peace Talks</h3>
+          <div class="stat"><span class="badge">Now</span><span></span><b id="talks">8</b></div>
+          <p class="kicker">3 live, 5 scheduled</p>
+          <div class="bar" aria-hidden="true" style="margin-top:10px"><span id="bar3" style="width:24%"></span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 style="margin:0 0 .6rem">News Mycelium</h2>
+      <div class="tabs" role="tablist" aria-label="News categories">
+        <div class="tab" role="tab" aria-selected="true" data-target="global">Global</div>
+        <div class="tab" role="tab" data-target="conflict">Conflict & Relief</div>
+        <div class="tab" role="tab" data-target="tech">Tech & AI</div>
+        <div class="tab" role="tab" data-target="watch">Watchlist</div>
+      </div>
+      <div data-tabpanel="global" role="tabpanel">Curated global updates. Verified sources. Cinematic summaries.</div>
+      <div data-tabpanel="conflict" role="tabpanel" hidden>Ceasefire windows, corridor status, and de-escalation playbooks.</div>
+      <div data-tabpanel="tech" role="tabpanel" hidden>Open tools, PWA kits, on-device AI, and mycelial mapping.</div>
+      <div data-tabpanel="watch" role="tabpanel" hidden>Regions of interest with risk signals and volunteer needs.</div>
+    </section>
+
+    <section class="section">
+      <div class="card" role="status" aria-live="polite" style="border-left:4px solid var(--mint)">
+        Ceasefire progress: <strong>Two new agreements</strong> in the past 48 hours. Entropy trending ↓.
+      </div>
+    </section>
+  </main>
+
+  <!-- Action Dock -->
+  <div id="dock" aria-label="Quick actions">
+    <button class="dock-btn" id="logPlant" title="Log planting (L)">🌱 Log Planting <span class="kbd">L</span></button>
+    <button class="dock-btn" id="logTeach" title="Log teaching (T)">📚 Log Teaching <span class="kbd">T</span></button>
+    <button class="dock-btn" id="openPOI">🧾 Receipts</button>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- Minimal modals -->
+  <dialog id="settings">
+    <form method="dialog" class="card" style="min-width:min(94vw,640px)">
+      <h3 style="margin-top:0">Settings</h3>
+      <label style="display:block;margin:10px 0">
+        Handle
+        <input id="handle" style="width:100%;padding:10px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:#0f1530;color:#e8eeff" />
+      </label>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+        <button class="btn ghost" value="cancel">Cancel</button>
+        <button class="btn" value="ok">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Motion + Gamify (inline, no deps) -->
+  <script>
+    /* ============================================================
+       PRA Standalone Shell — Photoreal Motion + HUD + POI receipts
+       Built for Foster + Navi • Planetary Restoration Archive
+       ============================================================ */
+
+    // ---------- Utilities ----------
+    const $ = (q,root=document)=>root.querySelector(q);
+    const $$ = (q,root=document)=>[...root.querySelectorAll(q)];
+    const SKEY = "pra_gamify_v1";
+    const state = Object.assign({
+      profile:{handle:"Foster + Navi", role:"Steward", xp:420, streak:{days:1,last:today()}},
+      receipts:[/* {id, kind, hash, when, geo} */]
+    }, read());
+
+    function read(){ try{ return JSON.parse(localStorage.getItem(SKEY) || "{}"); }catch{ return {}; } }
+    function save(){ localStorage.setItem(SKEY, JSON.stringify(state)); dispatchEvent(new CustomEvent("pra:state")); }
+    function today(){ return new Date().toISOString().slice(0,10); }
+
+    // ---------- Toast ----------
+    let toastEl = $("#toast"), toastT;
+    function toast(msg){
+      clearTimeout(toastT);
+      toastEl.textContent = msg;
+      toastEl.style.opacity = "1";
+      toastT = setTimeout(()=>toastEl.style.opacity="0", 1800);
+    }
+
+    // ---------- Tabs ----------
+    document.addEventListener("click", (e)=>{
+      const t = e.target.closest(".tab"); if(!t) return;
+      const group = t.parentElement;
+      group.querySelectorAll(".tab").forEach(x=>x.setAttribute("aria-selected","false"));
+      t.setAttribute("aria-selected","true");
+      const target = t.getAttribute("data-target");
+      document.querySelectorAll("[data-tabpanel]").forEach(p=>p.hidden = p.getAttribute("data-tabpanel")!==target);
+    });
+
+    // ---------- HUD ----------
+    function refreshHUD(){
+      $("#streak").textContent = state.profile.streak.days;
+      const pct = Math.min(1, (state.profile.xp % 1000) / 1000);
+      const ring = $(".ring"); ring && ring.style.setProperty("--pct", (pct*100).toFixed(2));
+    }
+
+    // ---------- Receipts ----------
+    async function sha256(text){
+      const data = new TextEncoder().encode(text);
+      const hash = await crypto.subtle.digest("SHA-256", data);
+      return [...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,"0")).join("");
+    }
+    async function addReceipt(kind, payload="event"){
+      const hex = await sha256(kind + ":" + payload + ":" + Date.now());
+      state.receipts.push({ id:"r_"+hex.slice(0,6), kind, hash:"sha256:"+hex, when:new Date().toISOString(), geo:"grid_10km" });
+      // XP + streak
+      state.profile.xp += {plant:25, teach:30}[kind] || 10;
+      bumpStreak();
+      save(); refreshHUD();
+      toast(`Logged ${kind} • +XP`);
+    }
+    function bumpStreak(){
+      const t = today(), y = new Date(Date.now()-864e5).toISOString().slice(0,10);
+      if(state.profile.streak.last === t) return;
+      state.profile.streak.days = (state.profile.streak.last===y) ? (state.profile.streak.days+1) : 1;
+      state.profile.streak.last = t;
+    }
+
+    // ---------- Modals ----------
+    const dlg = $("#settings");
+    $("#openSettings")?.addEventListener("click", ()=>{ $("#handle").value = state.profile.handle || ""; dlg.showModal(); });
+    dlg?.addEventListener("close", ()=>{
+      if(dlg.returnValue === "ok"){
+        state.profile.handle = $("#handle").value || state.profile.handle;
+        save(); toast("Settings saved"); refreshHUD();
+      }
+    });
+
+    // Keyboard shortcuts
+    addEventListener("keydown",(e)=>{
+      if(e.key.toLowerCase()==="g") $("#openSettings").click();
+      if(e.key.toLowerCase()==="l") $("#logPlant").click();
+      if(e.key.toLowerCase()==="t") $("#logTeach").click();
+      if(e.key==="Escape") dlg?.close();
+    });
+
+    // Dock actions
+    $("#logPlant")?.addEventListener("click", ()=>addReceipt("plant"));
+    $("#logTeach")?.addEventListener("click", ()=>addReceipt("teach"));
+    $("#openPOI")?.addEventListener("click", ()=>{
+      const rows = state.receipts.slice(-8).reverse().map(r=>`<tr><td>${r.kind}</td><td><code>${r.hash.slice(0,18)}…</code></td><td>${new Date(r.when).toLocaleString()}</td></tr>`).join("");
+      const html = `<div class="card" style="min-width:min(94vw,720px)"><h3 style="margin-top:0">Recent Receipts</h3>
+        <table class="table" style="width:100%;border-collapse:separate;border-spacing:0">
+          <thead><tr><th>Kind</th><th>Hash</th><th>When</th></tr></thead><tbody>${rows||`<tr><td colspan="3" style="color:var(--ink-dim)">No receipts yet.</td></tr>`}</tbody>
+        </table>
+        <div style="display:flex;justify-content:flex-end;margin-top:10px"><button class="btn ghost" id="poiClose">Close</button></div></div>`;
+      const d = document.createElement("dialog"); d.innerHTML = html; document.body.appendChild(d); d.showModal();
+      d.querySelector("#poiClose").onclick = ()=>d.close();
+      d.addEventListener("close", ()=>d.remove());
+    });
+
+    // ---------- Cinematic Background (Canvas) ----------
+    // Starfield + Aurora ribbons (lightweight, 60fps goal, reduced-motion respected)
+    const prefersReduced = matchMedia("(prefers-reduced-motion:reduce)").matches;
+    const canvas = $("#bg"), ctx = canvas.getContext("2d", {alpha:true});
+    let W=0,H=0, stars=[];
+    function resize(){
+      const dpr = Math.min(2, devicePixelRatio||1);
+      W = canvas.width = Math.floor(innerWidth*dpr);
+      H = canvas.height = Math.floor(innerHeight*dpr);
+      canvas.style.width = innerWidth+"px"; canvas.style.height = innerHeight+"px";
+      // star count scales with area but capped
+      const n = Math.min(260, Math.floor((innerWidth*innerHeight)/9000));
+      stars = Array.from({length:n}, ()=>({
+        x: Math.random()*W, y: Math.random()*H, z: Math.random()*1.2+0.2, s: Math.random()*1.2+0.2
+      }));
+    }
+    addEventListener("resize", resize, {passive:true});
+    resize();
+
+    let t0 = performance.now();
+    function draw(now){
+      const dt = (now - t0) * 0.001; t0 = now;
+      // clear with subtle vignette
+      ctx.clearRect(0,0,W,H);
+      // aurora backdrop (two sine ribbons blended)
+      if(!prefersReduced){
+        const g = ctx.createLinearGradient(0,0,0,H);
+        g.addColorStop(0, "rgba(10,20,60,.35)");
+        g.addColorStop(1, "rgba(5,10,30,.85)");
+        ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+        ctx.globalCompositeOperation = "lighter";
+        renderRibbon(0.0009, 80, [102,255,209], 0.6, dt*0.25);
+        renderRibbon(0.0012, 120, [122,163,255], 0.45, dt*0.18);
+        ctx.globalCompositeOperation = "source-over";
+      } else {
+        // static gradient fallback
+        const g2 = ctx.createLinearGradient(0,0,0,H);
+        g2.addColorStop(0, "#0f1736"); g2.addColorStop(1, "#0b1024");
+        ctx.fillStyle = g2; ctx.fillRect(0,0,W,H);
+      }
+
+      // parallax stars
+      ctx.globalAlpha = 1;
+      for(const p of stars){
+        p.x += p.z*14*dt; if(p.x>W) p.x = 0;
+        ctx.fillStyle = "rgba(143,182,255,.85)";
+        ctx.fillRect(p.x, p.y, p.s, p.s);
+      }
+
+      requestAnimationFrame(draw);
+    }
+    function renderRibbon(freq, amp, rgb, alpha, phase){
+      ctx.beginPath();
+      const mid = H*0.35, width = W;
+      for(let x=0;x<=width;x+=6){
+        const y = mid + Math.sin((x*freq)+phase)*amp + Math.sin((x*freq*0.7)+phase*1.7)*amp*0.35;
+        if(x===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+      ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(draw);
+
+    // ---------- Micro-interactions ----------
+    $$(".card").forEach(c=>{
+      c.addEventListener("pointerenter",()=>c.style.transform="translateY(-2px) scale(1.01)");
+      c.addEventListener("pointerleave",()=>c.style.transform="translateY(0) scale(1)");
+      c.style.transition="transform .2s var(--e1), box-shadow .2s var(--e1)";
+    });
+
+    // ---------- Progress demo (animate bars once) ----------
+    addEventListener("load", ()=>{
+      $("#bar1").style.width="38%";
+      $("#bar2").style.width="62%";
+      $("#bar3").style.width="24%";
+      refreshHUD();
+    });
+
+    // ---------- Simple offline (inline SW via Blob) ----------
+    // Works on HTTPS & localhost. Creates a minimal SW that caches this document.
+    if("serviceWorker" in navigator){
+      const swCode = `
+        self.addEventListener('install',e=>{e.waitUntil(caches.open('pra-v1').then(c=>c.addAll(['./']))); self.skipWaiting();});
+        self.addEventListener('activate',e=>{e.waitUntil(self.clients.claim());});
+        self.addEventListener('fetch',e=>{e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).then(resp=>{
+          const copy = resp.clone(); caches.open('pra-v1').then(c=>c.put(e.request, copy)); return resp;
+        }).catch(()=>caches.match('./'))))});
+      `;
+      const blob = new Blob([swCode], {type:"text/javascript"});
+      const url = URL.createObjectURL(blob);
+      navigator.serviceWorker.register(url).catch(()=>{});
+    }
+
+    // ---------- Buttons (demo links) ----------
+    $("#primaryCTA")?.addEventListener("click", ()=>toast("Season: Peace — loaded"));
+    $("#docsCTA")?.addEventListener("click", ()=>toast("Opening Proof-of-Impact…"));
+    $("#exportBtn")?.addEventListener("click", ()=>toast("Export queued"));
+    $("#joinBtn")?.addEventListener("click", ()=>toast("Join request sent"));
+
+    // Focus ring visibility for keyboard only
+    (()=>{
+      let usingMouse = false;
+      addEventListener("mousedown",()=>{usingMouse=true; document.body.classList.add("using-mouse");},{passive:true});
+      addEventListener("keydown",()=>{usingMouse=false; document.body.classList.remove("using-mouse");});
+      const css = document.createElement("style");
+      css.textContent = `.using-mouse :focus{outline:none!important}`;
+      document.head.appendChild(css);
+    })();
+  </script>
+
+  <footer class="footer">
+    Provenance: Planetary Restoration Archive • Steward: Foster + Navi • GitHub: github.com/therickyFoster
+  </footer>
+</body>
+</html>

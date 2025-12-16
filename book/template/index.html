@@ -1,0 +1,1311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Immersive Book Reader - Planetary Restoration Archive</title>
+<style>
+  /* =====================================================
+     ZERO-HARM DECLARATION & ATTRIBUTION
+     ===================================================== */
+  /*
+   * INTENDED USE: Educational book reading experience
+   * NON-WEAPONIZATION: This code is for creative, educational purposes
+   * LICENSE: MIT-style - Attribute when reusing
+   * ANTI-INVERSION: No tracking, no data extraction, no harm
+   * 
+   * ATTRIBUTIONS:
+   * - CSS 3D transforms: W3C specification
+   * - Page flip concept: Adapted from common web animation patterns
+   * - Canvas starfield: Custom implementation
+   * - No proprietary code replicated
+   */
+
+  :root {
+    --bg-primary: #2a1810;
+    --bg-secondary: #1a0f08;
+    --text-primary: #f4e8d8;
+    --text-secondary: #c9b89a;
+    --accent-gold: #d4af37;
+    --paper-light: #f9f6f0;
+    --paper-dark: #e8dcc8;
+    --shadow-book: rgba(0, 0, 0, 0.6);
+    --transition-speed: 1.2s;
+  }
+
+  [data-theme="medieval"] {
+    --bg-primary: #1a0f08;
+    --text-primary: #f4e8d8;
+    --accent-gold: #d4af37;
+  }
+
+  [data-theme="space"] {
+    --bg-primary: #000411;
+    --bg-secondary: #000208;
+    --text-primary: #e0f4ff;
+    --accent-gold: #00d9ff;
+    --paper-light: #0a1628;
+    --paper-dark: #050b14;
+  }
+
+  [data-theme="anime"] {
+    --bg-primary: #ffe4f0;
+    --bg-secondary: #ffd1e3;
+    --text-primary: #2d1b2e;
+    --accent-gold: #ff6b9d;
+    --paper-light: #ffffff;
+    --paper-dark: #fff5f8;
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg-primary: #f5f0e8;
+      --bg-secondary: #e8e0d0;
+      --text-primary: #2a1810;
+      --paper-light: #ffffff;
+      --paper-dark: #f9f6f0;
+    }
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-primary) 100%);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    perspective: 2000px;
+    position: relative;
+  }
+
+  /* =====================================================
+     STARFIELD CANVAS BACKGROUND
+     PURPOSE: Photorealistic space atmosphere
+     LAYERS: 3 depth layers with parallax
+     ===================================================== */
+  #starfield {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    opacity: 0;
+    transition: opacity 1s;
+  }
+
+  #starfield.visible {
+    opacity: 1;
+  }
+
+  [data-theme="space"] #starfield {
+    opacity: 0.8;
+  }
+
+  [data-theme="medieval"] #starfield {
+    opacity: 0.15;
+    filter: sepia(0.4);
+  }
+
+  [data-theme="anime"] #starfield {
+    opacity: 0.1;
+    filter: hue-rotate(290deg) saturate(1.5);
+  }
+
+  /* =====================================================
+     CONSTELLATION OVERLAY
+     PURPOSE: Named star patterns for navigation
+     ===================================================== */
+  .constellation {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s;
+  }
+
+  .constellation.visible {
+    opacity: 0.3;
+  }
+
+  /* =====================================================
+     PAGE TRANSITION OVERLAY
+     PURPOSE: Immersive full-screen transition effect
+     ===================================================== */
+  #transitionOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle, transparent 0%, rgba(0,0,0,0.95) 100%);
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #transitionOverlay.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .transition-message {
+    color: var(--accent-gold);
+    font-size: 2rem;
+    text-align: center;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.6s;
+  }
+
+  #transitionOverlay.active .transition-message {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  noscript {
+    display: block;
+    padding: 20px;
+    background: #ff6b6b;
+    color: white;
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: rgba(26, 15, 8, 0.95);
+    backdrop-filter: blur(10px);
+    padding: 15px 30px;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--accent-gold);
+  }
+
+  .header h1 {
+    font-size: 1.5rem;
+    color: var(--accent-gold);
+    font-weight: normal;
+    letter-spacing: 2px;
+  }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .btn {
+    background: var(--accent-gold);
+    color: var(--bg-primary);
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s;
+    font-weight: bold;
+  }
+
+  .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+  }
+
+  .theme-selector {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--accent-gold);
+    color: var(--text-primary);
+    padding: 8px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .progress-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    background: var(--accent-gold);
+    transition: width 0.5s;
+    z-index: 1000;
+    box-shadow: 0 0 10px var(--accent-gold);
+  }
+
+  .book-stage {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90vw;
+    height: 80vh;
+    max-width: 1400px;
+    max-height: 900px;
+    perspective: 2500px;
+    z-index: 10;
+    transition: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .book-stage.zoomed-out {
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+
+  .book-stage.zoomed-in {
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .book {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform var(--transition-speed);
+  }
+
+  .page {
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    right: 0;
+    top: 0;
+    transform-origin: left center;
+    transform-style: preserve-3d;
+    transition: transform var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+      0 10px 40px var(--shadow-book),
+      inset 0 0 20px rgba(0, 0, 0, 0.1);
+  }
+
+  .page.flipped {
+    transform: rotateY(-180deg);
+  }
+
+  .page-front,
+  .page-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    background: var(--paper-light);
+    padding: 60px 50px;
+    overflow-y: auto;
+    box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.05);
+  }
+
+  .page-front {
+    background: linear-gradient(to right, var(--paper-dark) 0%, var(--paper-light) 5%);
+  }
+
+  .page-back {
+    transform: rotateY(180deg);
+    background: linear-gradient(to left, var(--paper-dark) 0%, var(--paper-light) 5%);
+  }
+
+  .spine {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 20px;
+    height: 100%;
+    background: linear-gradient(to right, #3a2a1a, #5a4a3a, #3a2a1a);
+    transform: translateX(-50%);
+    box-shadow: 
+      inset 0 0 10px rgba(0, 0, 0, 0.5),
+      0 0 20px rgba(0, 0, 0, 0.3);
+    z-index: 5;
+  }
+
+  .page-front::before,
+  .page-back::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: 
+      repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px),
+      repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px);
+    pointer-events: none;
+    opacity: 0.3;
+  }
+
+  .page-content {
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: #2a1810;
+    text-align: justify;
+  }
+
+  .page-content h2 {
+    font-size: 2rem;
+    color: var(--accent-gold);
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: normal;
+    letter-spacing: 3px;
+  }
+
+  .page-content h3 {
+    font-size: 1.5rem;
+    margin-top: 30px;
+    margin-bottom: 15px;
+    color: #3a2a1a;
+  }
+
+  .page-content p {
+    margin-bottom: 20px;
+    text-indent: 2em;
+  }
+
+  .page-content p:first-of-type::first-letter {
+    font-size: 3.5rem;
+    font-weight: bold;
+    float: left;
+    line-height: 0.85;
+    margin: 5px 10px 0 0;
+    color: var(--accent-gold);
+  }
+
+  .page-content blockquote {
+    border-left: 3px solid var(--accent-gold);
+    padding-left: 20px;
+    margin: 20px 0;
+    font-style: italic;
+    color: #5a4a3a;
+  }
+
+  .nav-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(212, 175, 55, 0.9);
+    color: var(--bg-primary);
+    border: none;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+    cursor: pointer;
+    z-index: 100;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .nav-btn:hover {
+    transform: translateY(-50%) scale(1.1);
+    box-shadow: 0 6px 30px rgba(212, 175, 55, 0.5);
+  }
+
+  .nav-btn.prev {
+    left: 20px;
+  }
+
+  .nav-btn.next {
+    right: 20px;
+  }
+
+  .nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .page-number {
+    position: absolute;
+    bottom: 30px;
+    font-size: 0.9rem;
+    color: #8a7a6a;
+    font-style: italic;
+  }
+
+  .page-front .page-number {
+    right: 50px;
+  }
+
+  .page-back .page-number {
+    left: 50px;
+  }
+
+  .collapsible {
+    cursor: pointer;
+    padding: 10px;
+    background: rgba(212, 175, 55, 0.1);
+    border-left: 4px solid var(--accent-gold);
+    margin: 20px 0;
+    transition: background 0.3s;
+  }
+
+  .collapsible:hover {
+    background: rgba(212, 175, 55, 0.2);
+  }
+
+  .collapsible::before {
+    content: '▶ ';
+    display: inline-block;
+    transition: transform 0.3s;
+  }
+
+  .collapsible.active::before {
+    transform: rotate(90deg);
+  }
+
+  .collapsible-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease;
+  }
+
+  .collapsible-content.active {
+    max-height: 2000px;
+  }
+
+  .footer {
+    position: fixed;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: center;
+    z-index: 1000;
+    opacity: 0.7;
+  }
+
+  @media print {
+    body {
+      background: white;
+      color: black;
+    }
+    .header, .nav-btn, .controls, .footer, .progress-bar, #starfield, .constellation, #transitionOverlay {
+      display: none !important;
+    }
+    .book-stage {
+      position: relative;
+      transform: none !important;
+      width: 100%;
+      max-width: none;
+    }
+    .page {
+      position: relative;
+      width: 100%;
+      page-break-after: always;
+    }
+    .page-front, .page-back {
+      position: relative;
+      page-break-after: always;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .header h1 {
+      font-size: 1rem;
+    }
+    .controls {
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+    .btn {
+      padding: 6px 12px;
+      font-size: 0.8rem;
+    }
+    .book-stage {
+      width: 95vw;
+      height: 70vh;
+    }
+    .page-content {
+      font-size: 0.95rem;
+      padding: 40px 30px;
+    }
+    .nav-btn {
+      width: 50px;
+      height: 50px;
+      font-size: 1.2rem;
+    }
+  }
+</style>
+</head>
+<body data-theme="medieval">
+
+<noscript>
+  <p>⚠️ This book reader requires JavaScript for the interactive experience. Content is still readable below.</p>
+</noscript>
+
+<!-- STARFIELD CANVAS -->
+<canvas id="starfield"></canvas>
+
+<!-- CONSTELLATION OVERLAY -->
+<svg class="constellation" id="constellation" xmlns="http://www.w3.org/2000/svg">
+  <!-- Constellations drawn dynamically by JS -->
+</svg>
+
+<!-- TRANSITION OVERLAY -->
+<div id="transitionOverlay">
+  <div class="transition-message">✨ Turning page... ✨</div>
+</div>
+
+<header class="header">
+  <h1>📖 PLANETARY RESTORATION ARCHIVE</h1>
+  <div class="controls">
+    <select class="theme-selector" id="themeSelector" title="Choose visual theme">
+      <option value="medieval">Medieval</option>
+      <option value="space">Space</option>
+      <option value="anime">Anime</option>
+    </select>
+    <button class="btn" onclick="exportHTML()" title="Download complete HTML file">💾 Save HTML</button>
+    <button class="btn" onclick="exportPDF()" title="Print or save as PDF">📄 Export PDF</button>
+    <button class="btn" onclick="exportJSON()" title="Export content data as JSON">📊 Export JSON</button>
+  </div>
+</header>
+
+<div class="progress-bar" id="progressBar"></div>
+
+<button class="nav-btn prev" id="prevBtn" onclick="prevPage()" title="Previous page">‹</button>
+<button class="nav-btn next" id="nextBtn" onclick="nextPage()" title="Next page">›</button>
+
+<div class="book-stage" id="bookStage">
+  <div class="book" id="book">
+    <div class="spine"></div>
+
+    <div class="page" id="page1" data-page="1">
+      <div class="page-front">
+        <div class="page-content">
+          <h2>The Beginning</h2>
+          <p>In an age where humanity stood at the crossroads of extinction and enlightenment, a small group of visionaries gathered beneath the ancient oaks of what was once called the "Silicon Valley." They were scientists, artists, indigenous wisdom keepers, and children—united by a single, audacious dream: to heal the living planet.</p>
+          
+          <p>The year was 2025, and Earth bore the scars of centuries of extraction. Rivers ran toxic, forests smoldered, and the great coral cities of the ocean had become ghostly monuments. But in the darkness, seeds of transformation were germinating.</p>
+
+          <h3 class="collapsible">The Five Principles of Restoration</h3>
+          <div class="collapsible-content">
+            <p><strong>1. Reciprocity over Extraction:</strong> Every action must give back more than it takes. The economy of care replaces the economy of theft.</p>
+            
+            <p><strong>2. Mycorrhizal Networks:</strong> Just as fungi connect forest roots in underground intelligence, our systems must weave together knowledge, resources, and communities.</p>
+            
+            <p><strong>3. Regenerative Cycles:</strong> Waste is food. Death is composted into life. Every ending contains the seeds of new beginning.</p>
+            
+            <p><strong>4. Polyphonic Voices:</strong> No single species, culture, or perspective holds all answers. Wisdom emerges from diversity in dialogue.</p>
+            
+            <p><strong>5. Seven-Generation Thinking:</strong> Every decision is measured against its impact on descendants seven generations hence.</p>
+          </div>
+
+          <blockquote>"We do not inherit the Earth from our ancestors; we borrow it from our children." — Ancient Proverb</blockquote>
+        </div>
+        <div class="page-number">1</div>
+      </div>
+      <div class="page-back">
+        <div class="page-content">
+          <h3>The Archive's Origins</h3>
+          <p>The Planetary Restoration Archive began not in a laboratory or government chamber, but in a community garden in Detroit. Dr. Maya Okonkwo, a soil microbiologist who had left academia after witnessing years of knowledge locked behind paywalls, knelt in the earth teaching neighborhood children about compost.</p>
+
+          <p>"See these worms?" she said, holding up a handful of rich black soil teeming with life. "They're eating last week's vegetable scraps and turning them into food for next year's tomatoes. That's the whole economy of nature—transformation, not accumulation."</p>
+
+          <p>One child, seven-year-old Kai Chen, asked: "Why don't the big companies do this?"</p>
+
+          <p>Maya paused. The question hung in the air like a seed waiting for soil. That night, she began writing. Not a research paper locked behind academic gates, but an open letter to the world. She called it "The Reciprocity Manifesto."</p>
+
+          <h3 class="collapsible">The Reciprocity Manifesto (Excerpt)</h3>
+          <div class="collapsible-content">
+            <p><em>We stand at the threshold of the Sixth Extinction, an event of our own making. The dominant systems of our time treat the planet as a resource to be maximized, optimized, and exhausted. This is the logic of cancer—grow or die.</em></p>
+
+            <p><em>But there is another way, older and wiser: the logic of the forest, the coral reef, the prairie. These systems have thrived for millions of years through reciprocity. Each organism takes what it needs and gives back in kind. Waste becomes food. Death becomes soil. Energy cycles rather than accumulates.</em></p>
+
+            <p><em>The Planetary Restoration Archive exists to collect, protect, and share the knowledge of reciprocity. Not as property to be owned, but as commons to be tended. We are mycelium, connecting isolated pockets of wisdom into a planetary intelligence.</em></p>
+          </div>
+        </div>
+        <div class="page-number">2</div>
+      </div>
+    </div>
+
+    <div class="page" id="page2" data-page="2">
+      <div class="page-front">
+        <div class="page-content">
+          <h2>Chapter One: The Mycelial Network</h2>
+          
+          <p>Within months, Maya's manifesto had been translated into 47 languages and was being read in villages, universities, and indigenous councils worldwide. But it was Kenji Tanaka, a Japanese systems architect who had spent years designing decentralized networks, who saw how to make it real.</p>
+
+          <p>"We don't need a central database," Kenji explained in their first video call, his background showing the glow of Tokyo at night. "We need a living network. Think of how mycelium works—no central brain, but incredible distributed intelligence. Each node contains a piece of the whole, and they communicate through chemical signals."</p>
+
+          <h3 class="collapsible">Technical Architecture: The Rhizome Protocol</h3>
+          <div class="collapsible-content">
+            <p><strong>Distributed Storage:</strong> The Archive lives in IndexedDB on thousands of devices. No single point of failure. If one node goes dark, others carry the knowledge.</p>
+
+            <p><strong>Offline-First:</strong> Communities in regions with limited connectivity can access and contribute without constant internet. Syncing happens when possible, like spores spreading on the wind.</p>
+
+            <p><strong>Version Control via Nature:</strong> Instead of Git's tree structure, we use rhizomatic versioning. Multiple valid versions coexist, cross-pollinate, and evolve. Conflicts are features, not bugs—they represent diversity of perspective.</p>
+
+            <p><strong>Ethical Sync:</strong> Before pushing data, the protocol asks: "Does this honor consent? Does this protect vulnerable knowledge? Does this serve seven generations?" An AI trained on indigenous data sovereignty principles assists.</p>
+          </div>
+
+          <p>But it was Amara Osei, a Ghanaian ethnobotanist and drummer, who insisted on the Archive's most radical feature.</p>
+        </div>
+        <div class="page-number">3</div>
+      </div>
+      <div class="page-back">
+        <div class="page-content">
+          <h3>The Narrative Shield</h3>
+          
+          <p>"Every database is a story about what matters," Amara explained, her voice carrying the rhythm of her ancestors. "The current ones say: GDP matters. Profit matters. Growth matters. Our archive must tell a different story."</p>
+
+          <p>She proposed what became known as the <strong>Anti-Prenarrative Inversion</strong>—a design principle ensuring the Archive couldn't be weaponized or commodified.</p>
+
+          <blockquote>"A pre-narrative is the invisible story that shapes all other stories. Capitalism's pre-narrative is scarcity and competition. We must code a different pre-narrative: abundance and collaboration. Every API call, every data structure, every user interaction must embody this."</blockquote>
+
+          <h3 class="collapsible">Anti-Inversion Mechanisms</h3>
+          <div class="collapsible-content">
+            <p><strong>Rate Limiting:</strong> No user can extract data faster than a human can read and comprehend. This prevents bulk scraping and AI training exploitation.</p>
+
+            <p><strong>Consent Layers:</strong> Indigenous knowledge, traditional practices, and sacred information require explicit, informed consent from source communities before access.</p>
+
+            <p><strong>License Transparency:</strong> Every piece of content displays its license, attribution, and usage restrictions in plain language. "Don't be evil" isn't enough—we must make evil difficult.</p>
+
+            <p><strong>Economic Antibodies:</strong> The code detects and rejects attempts at financialization. No blockchain speculation. No NFTs of sacred plants. No venture capital "scaling."</p>
+
+            <p><strong>Sunset Clauses:</strong> Certain sensitive data self-deletes after a time period specified by its contributors. Impermanence is sacred.</p>
+          </div>
+
+          <p>The first version of the Archive launched on the spring equinox, 2026. Within hours, contributions flooded in from every continent.</p>
+        </div>
+        <div class="page-number">4</div>
+      </div>
+    </div>
+
+    <div class="page" id="page3" data-page="3">
+      <div class="page-front">
+        <div class="page-content">
+          <h2>Chapter Two: Stories of Restoration</h2>
+          
+          <p>The Archive wasn't just technical infrastructure—it was a living library of hope in action. Here are three stories from its first year:</p>
+
+          <h3 class="collapsible">The Mangrove Midwives</h3>
+          <div class="collapsible-content">
+            <p>In Bangladesh, rising seas had swallowed coastal villages. But a collective of women—fisher folk, farmers, and grandmothers—began planting mangroves. Not just randomly, but in patterns taught by elders and confirmed by soil science.</p>
+
+            <p>They documented everything in the Archive: which species thrived in different salinity levels, how to protect seedlings from storms, which crabs and fish returned as the forests grew. They called themselves <em>the Mangrove Midwives</em>—helping new forests be born.</p>
+
+            <p>Within three years, 40 kilometers of coastline had been restored. Storm surge damage dropped 70%. Fish catches tripled. And 23 other coastal communities had replicated the model using the Archive's documentation.</p>
+
+            <p>"We're not saving the mangroves," said Nasrin Akhter, one of the Midwives. "We're letting them save us. The Archive helps us remember how to be good guests in their world."</p>
+          </div>
+
+          <h3 class="collapsible">The Soil Prophets of California</h3>
+          <div class="collapsible-content">
+            <p>After a decade of megadroughts and wildfires, California's Central Valley was exhausted. Industrial agriculture had mined the soil of nutrients, compacted it beyond recognition, and poisoned aquifers with runoff.</p>
+
+            <p>Enter the Soil Prophets—a coalition of regenerative farmers, many of them the children and grandchildren of farmworkers exploited by the very system they were now transforming.</p>
+          </div>
+        </div>
+        <div class="page-number">5</div>
+      </div>
+      <div class="page-back">
+        <div class="page-content">
+          <p>They used the Archive to combine indigenous polyculture techniques, Korean natural farming methods, and cutting-edge soil microbiology. Their farms became carbon sinks, sequestering tons of CO2. Water requirements dropped by 60%. Yields increased.</p>
+
+          <p>"The industrial model says you have to choose between productivity and ecology," explained Maria Santos, whose family had picked grapes for three generations before she bought her own 40 acres. "The Archive shows that's a false choice. When you work with nature's intelligence instead of against it, you get both."</p>
+
+          <p>Her farm became a teaching site. Every week, dozens of conventional farmers visited, skeptical but curious. Maria would hand them a shovel and say, "Dig here. Then dig in your own field. Compare." The difference was undeniable—her soil was alive.</p>
+
+          <blockquote>"The Archive didn't give us new knowledge. It helped us remember old knowledge and see it with new eyes. That's the magic—the bridge between ancient wisdom and modern science."</blockquote>
+
+          <h3 class="collapsible">The Coral Gardeners</h3>
+          <div class="collapsible-content">
+            <p>The Great Barrier Reef was dying, bleached white by warming oceans. Scientists predicted total collapse within a decade. But in the Philippines, Indonesia, and Caribbean, a network of coral restoration practitioners was learning how to help reefs adapt.</p>
+
+            <p>They discovered that some coral genotypes were heat-resistant. By carefully cultivating and transplanting these "super corals" while maintaining genetic diversity, they could create resilient reef ecosystems.</p>
+
+            <p>The Archive became their coordination hub. Divers in Jamaica shared water temperature data with researchers in Sulawesi. A teenager in Fiji uploaded time-lapse videos of coral growth. A marine biologist in Australia contributed genetic sequencing protocols.</p>
+
+            <p>Crucially, the Archive's consent protocols ensured that indigenous fishing communities—the original reef stewards—controlled access to traditional knowledge about coral behavior, fish migration, and sustainable harvesting.</p>
+
+            <p>"Our ancestors knew these reefs for thousands of years," said Makana Kealoha, a Native Hawaiian reef keeper. "Colonial science ignored us, took our knowledge without permission, and then declared the reefs dying. The Archive lets us lead the restoration, as it should be."</p>
+          </div>
+        </div>
+        <div class="page-number">6</div>
+      </div>
+    </div>
+
+    <div class="page" id="page4" data-page="4">
+      <div class="page-front">
+        <div class="page-content">
+          <h2>Chapter Three: The Crisis</h2>
+          
+          <p>By 2028, the Archive had grown beyond anyone's projections. Over 200,000 contributors. Documentation of 15,000 restoration projects. Terabytes of ecological knowledge. But success brought danger.</p>
+
+          <p>A pharmaceutical company attempted to scrape the Archive's ethnobotanical database to patent traditional medicines. A tech billionaire proposed "scaling" the Archive with blockchain and a $2 billion valuation. A government agency demanded backdoor access for "national security."</p>
+
+          <p>The founding team gathered—now expanded to 40 people across six continents—for an emergency video call.</p>
+
+          <p>"This is exactly what Amara warned us about," Maya said, exhaustion visible in the dark circles under her eyes. "Success in the old paradigm looks like growth, monetization, control. We need to redefine success in terms of resilience, autonomy, and care."</p>
+
+          <h3 class="collapsible">The Decentralization Deepening</h3>
+          <div class="collapsible-content">
+            <p>The team made several radical decisions:</p>
+
+            <p><strong>No Central Organization:</strong> The Archive dissolved its 501(c)(3) nonprofit status. Instead, it became a protocol—like email or BitTorrent—with no single entity to sue, co-opt, or shut down.</p>
+
+            <p><strong>Forking Encouraged:</strong> Communities were explicitly invited to fork the codebase and create localized versions. The Māori Archive. The Quechua Archive. The Korean Archive. Each adapted to cultural needs while remaining interoperable.</p>
+
+            <p><strong>Anti-Scaling Principles:</strong> The code now intentionally resisted scaling beyond community size. Dunbar's number (≈150 relationships) became a design constraint. Larger networks were encouraged to federate, not centralize.</p>
+          </div>
+        </div>
+        <div class="page-number">7</div>
+      </div>
+      <div class="page-back">
+        <div class="page-content">
+          <p><strong>Computational Modesty:</strong> Features were removed if they required data centers or significant energy. The Archive would run on old phones, raspberry pis, and solar-powered servers. Low-tech wasn't a compromise—it was a principle.</p>
+
+          <p><strong>Economic Immunity:</strong> The codebase now included "license antibodies" that detected and rejected any attempt to commercialize the core protocol. Forks could add commercial features, but the commons remained inviolate.</p>
+
+          <p>The pharmaceutical company sued. The billionaire called them "anti-progress luddites." The government issued subpoenas. But there was no central server to seize, no CEO to arrest, no company to sanction.</p>
+
+          <p>The Archive was everywhere and nowhere—living on thousands of devices, tended by communities who understood that some things must remain outside the market.</p>
+
+          <h3>The Story Virus</h3>
+          
+          <p>But the most effective defense wasn't technical—it was narrative.</p>
+
+          <p>Amara created what she called "story viruses"—compelling narratives embedded in the Archive that reshaped how people thought about knowledge, ownership, and progress.</p>
+
+          <p>One story, titled <em>"The Last Patent,"</em> imagined a future where someone tried to patent the rain. It spread across social media, translated into 70 languages, adapted into songs, murals, and plays. It made the absurdity of knowledge enclosure visceral.</p>
+
+          <p>Another, <em>"The Wisdom of Weeds,"</em> told how dandelions—considered pests—were actually pioneers healing damaged soil, accumulating nutrients, and preparing ground for diverse ecosystems. The metaphor was impossible to miss: what the powerful call weeds, the living world calls healers.</p>
+
+          <blockquote>"You can't fight a story with facts. You fight a story with a better story. The Archive is our better story—and it's true."</blockquote>
+        </div>
+        <div class="page-number">8</div>
+      </div>
+    </div>
+
+    <div class="page" id="page5" data-page="5">
+      <div class="page-front">
+        <div class="page-content">
+          <h2>Chapter Four: Seven Generations</h2>
+          
+          <p>In 2030, the founding team added one final feature to the Archive: the <strong>Seven Generations Protocol</strong>.</p>
+
+          <p>Every project documented in the Archive now required contributors to answer: "How will this impact descendants seven generations from now?" The questions were specific:</p>
+
+          <p>🌱 <strong>Ecological:</strong> Does this restore or deplete? Does this create habitat or destroy it?</p>
+          <p>🤝 <strong>Social:</strong> Does this strengthen community bonds or erode them? Does this honor consent?</p>
+          <p>🧠 <strong>Knowledge:</strong> Does this preserve wisdom or extract it? Is this reciprocal?</p>
+          <p>💫 <strong>Spiritual:</strong> Does this respect the sacred? Does this honor ancestors and descendants?</p>
+          <p>⚖️ <strong>Justice:</strong> Who benefits? Who bears the cost? Is this equitable across geography and time?</p>
+
+          <p>An AI assistant—trained on indigenous philosophy, systems thinking, and ecological science—helped contributors think through implications they might miss. But it never made decisions. It asked questions.</p>
+
+          <h3 class="collapsible">Case Study: The Phosphorus Question</h3>
+          <div class="collapsible-content">
+            <p>A team in Morocco proposed documenting industrial-scale phosphate mining for fertilizer production—vital for feeding billions but environmentally devastating.</p>
+
+            <p>The Seven Generations Protocol flagged concerns: phosphate is a finite resource being depleted at unsustainable rates. Current extraction poisons watersheds. The benefits flow to industrial agriculture; the costs to local communities and future generations.</p>
+
+            <p>Instead of rejecting the submission, the Archive's AI asked: "What would a seven-generation approach to phosphorus look like?"</p>
+          </div>
+        </div>
+        <div class="page-number">9</div>
+      </div>
+      <div class="page-back">
+        <div class="page-content">
+          <p>This sparked a global collaboration. The team connected with composting networks recovering phosphorus from human waste, permaculture designers using phosphorus-accumulating plants, industrial ecologists developing closed-loop phosphorus systems, and indigenous farmers who had maintained soil fertility for millennia without mining.</p>
+
+          <p>The final Archive entry wasn't about mining—it was a comprehensive guide to regenerative phosphorus cycling. The Moroccan team shifted their work from extraction to restoration, helping their region transition to circular nutrient flows.</p>
+
+          <p>"The Seven Generations Protocol didn't tell us what to do," explained Fatima El-Masri, the team lead. "It helped us ask better questions. And better questions led to better answers."</p>
+
+          <h3>The Children's Council</h3>
+
+          <p>The Protocol's most radical element was the Children's Council—a rotating group of young people (ages 8-15) who reviewed major Archive decisions.</p>
+
+          <p>"They're closer to the future than we are," Maya explained when announcing the Council. "If we're serious about seven-generation thinking, we need voices from the next generation at the table."</p>
+
+          <p>The Council blocked several proposals adults thought brilliant. They rejected a geoengineering project because "it treats symptoms, not causes." They questioned a massive solar farm for disrupting desert ecosystems. They insisted that any AI used in the Archive be explainable to a 10-year-old.</p>
+
+          <p>Their most famous decision: requiring that all Archive documentation include sections written for children. "If you can't explain it simply," said Council member Aisha Kamara, age 11, "maybe you don't understand it well enough."</p>
+        </div>
+        <div class="page-number">10</div>
+      </div>
+    </div>
+
+    <div class="page" id="page6" data-page="6">
+      <div class="page-front">
+        <div class="page-content">
+          <h2>Epilogue: An Invitation</h2>
+          
+          <p>This is not a complete story—it cannot be. The Planetary Restoration Archive is still being written, by thousands of hands, in hundreds of languages, across all continents.</p>
+
+          <p>What you have read is one thread in a vast mycelial network of restoration stories. There are thousands more: the Rewilding Collectives of Europe, the Water Harvesters of Rajasthan, the Seed Keepers of the Andes, the Urban Forest Builders of Detroit.</p>
+
+          <p>The Archive succeeded not because it was perfect, but because it was humble. It didn't try to be the final answer—it tried to be a good question, asked in a spirit of service.</p>
+
+          <h3>The Three Principles (Revisited)</h3>
+
+          <p><strong>1. Knowledge as Commons:</strong> Information wants to be free—but also respected, contextualized, and protected. The Archive found the balance.</p>
+
+          <p><strong>2. Technology as Compost:</strong> Code, like organic matter, should decompose and become soil for new growth. No permanent platforms. No eternal corporations. Everything eventually feeds something else.</p>
+
+          <p><strong>3. Restoration as Relationship:</strong> We don't "save" the planet—we remember how to be in right relationship with it. The Archive is a tool for remembering.</p>
+
+          <h3 class="collapsible">How to Contribute</h3>
+          <div class="collapsible-content">
+            <p>The Archive lives at the intersection of action and documentation:</p>
+            
+            <p><strong>For Practitioners:</strong> If you're doing restoration work—soil building, habitat creation, watershed healing, community organizing—document your process. Share your failures as openly as successes. Others will learn.</p>
+
+            <p><strong>For Researchers:</strong> Break your findings out of paywalled journals. Translate jargon into plain language. Connect your specialized knowledge to ground-level practice.</p>
+
+            <p><strong>For Indigenous Communities:</strong> Only share what you choose to share, with full consent and control. The Archive exists to amplify your voices, not extract your knowledge.</p>
+          </div>
+        </div>
+        <div class="page-number">11</div>
+      </div>
+      <div class="page-back">
+        <div class="page-content">
+          <p><strong>For Artists:</strong> Stories, songs, images, and performances spread ideas in ways data never can. Make the Archive beautiful. Make it memeable. Make it sing.</p>
+
+          <p><strong>For Technologists:</strong> Build tools that empower communities, not platforms that extract value. Code with consent. Design for resilience, not growth. Remember: you are building soil for future forests.</p>
+
+          <p><strong>For Everyone:</strong> The most important contribution is attention. Read. Learn. Share. Practice. The Archive only matters if its knowledge moves from screen to soil, from data to dirt, from information to action.</p>
+
+          <h3>A Blessing for the Journey</h3>
+
+          <blockquote style="border: none; text-align: center; font-size: 1.2rem; margin: 40px 0;">
+            May your hands remember the texture of soil.<br>
+            May your eyes see the relationships between all beings.<br>
+            May your mind hold both ancient wisdom and new science.<br>
+            May your heart stay broken open by beauty and injustice alike.<br>
+            May your actions ripple through seven generations.<br>
+            May you be good compost.
+          </blockquote>
+
+          <h3 style="margin-top: 50px; text-align: center; color: var(--accent-gold);">The End is a Beginning</h3>
+
+          <p style="text-align: center; font-style: italic; margin-top: 30px;">This book was generated by the Archive's Story Engine—an AI trained on restoration narratives from 50,000 projects worldwide. It is both documentation and invitation. The stories are real. The future is unwritten. Your move.</p>
+
+          <hr style="margin: 40px 0; border: none; border-top: 2px solid var(--accent-gold);">
+
+          <p style="font-size: 0.9rem; text-align: center; margin-top: 30px;">
+            <strong>ATTRIBUTIONS & LICENSES</strong><br>
+            • Mycelial network concept: Public domain ecological science<br>
+            • Seven Generations principle: Haudenosaunee traditional wisdom<br>
+            • All code: MIT License (use freely, attribute clearly)<br>
+            • Content: CC BY-SA 4.0 (share, adapt, credit, share-alike)<br>
+            • 3D transforms: W3C CSS specification<br>
+            • No external fonts or libraries used<br>
+            <br>
+            <strong>ZERO-HARM COMMITMENT</strong><br>
+            This tool is for education, restoration, and community empowerment.<br>
+            Any use for extraction, surveillance, or harm violates its intended purpose.
+          </p>
+        </div>
+        <div class="page-number">12</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer class="footer">
+  <p>🌍 Zero-Harm Technology • Open Source • Commons-Based • Reciprocity-Driven 🌱</p>
+  <p style="font-size: 0.7rem; margin-top: 5px;">Non-weaponizable • Non-extractive • Seven-Generation Aligned</p>
+</footer>
+
+<script>
+  // ===== STATE VARIABLES =====
+  let currentPage = 1;
+  const totalPages = 6;
+  let isAnimating = false;
+  
+  const bookStage = document.getElementById('bookStage');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const progressBar = document.getElementById('progressBar');
+
+  // =====================================================
+  // PHOTOREALISTIC STARFIELD RENDERER
+  // PURPOSE: Create immersive space atmosphere
+  // TECHNIQUE: Canvas with multiple depth layers
+  // =====================================================
+  
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let stars = [];
+  let animationId;
+  
+  function initStarfield() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    // Create three layers of stars at different depths
+    stars = [];
+    
+    // Layer 1: Distant stars (small, slow)
+    for (let i = 0; i < 200; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * 0.8 + 0.2,
+        opacity: Math.random() * 0.5 + 0.3,
+        twinkleSpeed: Math.random() * 0.02 + 0.005,
+        twinkleOffset: Math.random() * Math.PI * 2,
+        layer: 1,
+        vx: (Math.random() - 0.5) * 0.02,
+        vy: (Math.random() - 0.5) * 0.02
+      });
+    }
+    
+    // Layer 2: Middle stars (medium)
+    for (let i = 0; i < 100; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * 1.2 + 0.8,
+        opacity: Math.random() * 0.6 + 0.4,
+        twinkleSpeed: Math.random() * 0.03 + 0.01,
+        twinkleOffset: Math.random() * Math.PI * 2,
+        layer: 2,
+        vx: (Math.random() - 0.5) * 0.05,
+        vy: (Math.random() - 0.5) * 0.05
+      });
+    }
+    
+    // Layer 3: Close stars (large, bright)
+    for (let i = 0; i < 50; i++) {
+      stars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        radius: Math.random() * 1.8 + 1.2,
+        opacity: Math.random() * 0.4 + 0.6,
+        twinkleSpeed: Math.random() * 0.04 + 0.015,
+        twinkleOffset: Math.random() * Math.PI * 2,
+        layer: 3,
+        vx: (Math.random() - 0.5) * 0.1,
+        vy: (Math.random() - 0.5) * 0.1
+      });
+    }
+    
+    animateStarfield();
+    setTimeout(() => {
+      canvas.classList.add('visible');
+    }, 100);
+  }
+  
+  function animateStarfield() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    const time = Date.now() * 0.001;
+    
+    stars.forEach(star => {
+      // Subtle drift
+      star.x += star.vx;
+      star.y += star.vy;
+      
+      // Wrap around edges
+      if (star.x < 0) star.x = canvas.width;
+      if (star.x > canvas.width) star.x = 0;
+      if (star.y < 0) star.y = canvas.height;
+      if (star.y > canvas.height) star.y = 0;
+      
+      // Twinkling effect
+      const twinkle = Math.sin(time * star.twinkleSpeed + star.twinkleOffset);
+      const currentOpacity = star.opacity + twinkle * 0.2;
+      
+      // Draw star with glow
+      const gradient = ctx.createRadialGradient(
+        star.x, star.y, 0,
+        star.x, star.y, star.radius * 3
+      );
+      gradient.addColorStop(0, `rgba(255, 255, 255, ${currentOpacity})`);
+      gradient.addColorStop(0.3, `rgba(200, 220, 255, ${currentOpacity * 0.6})`);
+      gradient.addColorStop(1, 'rgba(150, 180, 255, 0)');
+      
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.radius * 3, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Bright center
+      ctx.fillStyle = `rgba(255, 255, 255, ${currentOpacity})`;
+      ctx.beginPath();
+      ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    
+    animationId = requestAnimationFrame(animateStarfield);
+  }
+  
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+
+  // =====================================================
+  // CONSTELLATION RENDERER
+  // PURPOSE: Draw named star patterns
+  // =====================================================
+  
+  const constellationSvg = document.getElementById('constellation');
+  
+  function drawConstellation() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    
+    constellationSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    
+    // Big Dipper constellation (simplified)
+    const points = [
+      [w * 0.2, h * 0.3],
+      [w * 0.25, h * 0.28],
+      [w * 0.3, h * 0.27],
+      [w * 0.35, h * 0.29],
+      [w * 0.38, h * 0.35],
+      [w * 0.4, h * 0.4],
+      [w * 0.42, h * 0.45]
+    ];
+    
+    // Draw connecting lines
+    for (let i = 0; i < points.length - 1; i++) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', points[i][0]);
+      line.setAttribute('y1', points[i][1]);
+      line.setAttribute('x2', points[i + 1][0]);
+      line.setAttribute('y2', points[i + 1][1]);
+      line.setAttribute('stroke', 'rgba(212, 175, 55, 0.3)');
+      line.setAttribute('stroke-width', '1');
+      constellationSvg.appendChild(line);
+    }
+    
+    // Draw stars at points
+    points.forEach(point => {
+      const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      circle.setAttribute('cx', point[0]);
+      circle.setAttribute('cy', point[1]);
+      circle.setAttribute('r', '3');
+      circle.setAttribute('fill', 'rgba(255, 255, 255, 0.8)');
+      constellationSvg.appendChild(circle);
+    });
+    
+    setTimeout(() => {
+      constellationSvg.classList.add('visible');
+    }, 500);
+  }
+
+  // =====================================================
+  // PAGE TRANSITION WITH STARFIELD EFFECT
+  // =====================================================
+  
+  const transitionOverlay = document.getElementById('transitionOverlay');
+  
+  function showTransition(callback) {
+    transitionOverlay.classList.add('active');
+    
+    setTimeout(() => {
+      if (callback) callback();
+      
+      setTimeout(() => {
+        transitionOverlay.classList.remove('active');
+      }, 800);
+    }, 600);
+  }
+
+  // =====================================================
+  // PAGE TURNING ANIMATION (ENHANCED)
+  // =====================================================
+  
+  function nextPage() {
+    if (isAnimating || currentPage >= totalPages) return;
+    
+    isAnimating = true;
+    
+    showTransition(() => {
+      bookStage.classList.add('zoomed-out');
+      
+      setTimeout(() => {
+        const page = document.getElementById(`page${currentPage}`);
+        page.classList.add('flipped');
+        
+        currentPage++;
+        
+        setTimeout(() => {
+          bookStage.classList.remove('zoomed-out');
+          bookStage.classList.add('zoomed-in');
+          
+          setTimeout(() => {
+            isAnimating = false;
+            updatePageDisplay();
+          }, 600);
+        }, 1200);
+      }, 100);
+    });
+  }
+  
+  function prevPage() {
+    if (isAnimating || currentPage <= 1) return;
+    
+    isAnimating = true;
+    
+    showTransition(() => {
+      bookStage.classList.add('zoomed-out');
+      
+      setTimeout(() => {
+        currentPage--;
+        const page = document.getElementById(`page${currentPage}`);
+        page.classList.remove('flipped');
+        
+        setTimeout(() => {
+          bookStage.classList.remove('zoomed-out');
+          bookStage.classList.add('zoomed-in');
+          
+          setTimeout(() => {
+            isAnimating = false;
+            updatePageDisplay();
+          }, 600);
+        }, 1200);
+      }, 100);
+    });
+  }
+
+  function updatePageDisplay() {
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+    
+    const progress = (currentPage / totalPages) * 100;
+    progressBar.style.width = `${progress}%`;
+  }
+
+  // =====================================================
+  // THEME SWITCHING
+  // =====================================================
+  
+  const themeSelector = document.getElementById('themeSelector');
+  
+  themeSelector.addEventListener('change', (e) => {
+    document.body.setAttribute('data-theme', e.target.value);
+  });
+
+  // =====================================================
+  // COLLAPSIBLE SECTIONS
+  // =====================================================
+  
+  function initCollapsibles() {
+    const collapsibles = document.querySelectorAll('.collapsible');
+    
+    collapsibles.forEach(collapsible => {
+      collapsible.addEventListener('click', function() {
+        this.classList.toggle('active');
+        const content = this.nextElementSibling;
+        content.classList.toggle('active');
+      });
+    });
+  }
+
+  // =====================================================
+  // KEYBOARD NAVIGATION
+  // =====================================================
+  
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') {
+      prevPage();
+    } else if (e.key === 'ArrowRight') {
+      nextPage();
+    }
+  });
+
+  // =====================================================
+  // EXPORT FUNCTIONS
+  // =====================================================
+  
+  function exportHTML() {
+    const htmlContent = document.documentElement.outerHTML;
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'planetary-restoration-book.html';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  
+  function exportPDF() {
+    window.print();
+  }
+  
+  function exportJSON() {
+    const pages = [];
+    
+    for (let i = 1; i <= totalPages; i++) {
+      const page = document.getElementById(`page${i}`);
+      const front = page.querySelector('.page-front .page-content');
+      const back = page.querySelector('.page-back .page-content');
+      
+      pages.push({
+        pageNumber: i,
+        front: front ? front.innerText : '',
+        back: back ? back.innerText : ''
+      });
+    }
+    
+    const data = {
+      title: 'Planetary Restoration Archive',
+      exportDate: new Date().toISOString(),
+      totalPages: totalPages,
+      pages: pages,
+      metadata: {
+        version: '1.0',
+        license: 'CC BY-SA 4.0',
+        attribution: 'Planetary Restoration Archive Community'
+      }
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'planetary-restoration-data.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // =====================================================
+  // INITIALIZATION
+  // =====================================================
+  
+  function init() {
+    initStarfield();
+    drawConstellation();
+    initCollapsibles();
+    updatePageDisplay();
+    bookStage.classList.add('zoomed-in');
+    
+    console.log('%c📖 Planetary Restoration Archive', 'font-size: 20px; color: #d4af37;');
+    console.log('%cZero-Harm Technology • Open Source • Commons-Based', 'color: #c9b89a;');
+    console.log('%cKeyboard: ← → to turn pages', 'color: #8a7a6a;');
+  }
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+</script>
+
+</body>
+</html>
